@@ -1,26 +1,47 @@
 #!/bin/sh
 set -e
 
-# Crear directorios de logs si no existen
+echo "🚀 Iniciando entrypoint para API Laravel..."
+
+# -------------------------------
+# 1️⃣ Instalar dependencias PHP con Composer
+# -------------------------------
+if [ -f /var/www/html/composer.json ]; then
+    echo "📦 Instalando dependencias de Composer..."
+    composer install --no-interaction --prefer-dist --optimize-autoloader
+else
+    echo "⚠️ No se encontró composer.json, se omite Composer install."
+fi
+
+# -------------------------------
+# 2️⃣ Preparar directorios de logs y permisos
+# -------------------------------
+echo "🗂️ Preparando directorios de logs..."
 mkdir -p /var/www/html/storage/logs
 mkdir -p /var/log/nginx
-# mkdir -p /var/log/supervisor
+mkdir -p /var/log/supervisor
 
-# Configurar permisos para los logs
 chown -R www-data:www-data /var/www/html/storage
 chmod -R 775 /var/www/html/storage
 
-php artisan config:cache
-php artisan route:cache
+# -------------------------------
+# 3️⃣ Cachear configuración y rutas
+# -------------------------------
+echo "⚙️ Cacheando configuración y rutas..."
+php artisan config:cache || true
+php artisan route:cache || true
 
 # -------------------------------
-# Ejecutar migraciones automáticamente
+# 4️⃣ Ejecutar migraciones automáticamente (seguro para prod/dev)
 # -------------------------------
-# Se usa 'php artisan migrate --force' para producción/dev sin prompt
+echo "🧩 Ejecutando migraciones..."
 php artisan migrate:fresh --seed --force || true
 
-# Iniciar PHP-FPM en segundo plano
+# -------------------------------
+# 5️⃣ Iniciar servicios
+# -------------------------------
+echo "🚀 Iniciando PHP-FPM..."
 php-fpm &
 
-# Iniciar Supervisor para que gestione otros procesos
+echo "🧠 Iniciando Supervisor..."
 exec supervisord -c /etc/supervisor/conf.d/supervisor.conf
